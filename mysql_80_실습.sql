@@ -884,6 +884,7 @@ select emp_id, emp_name
 from employee 
 where emp_id = (select emp_id from employee where emp_name='홍길동');
 
+-- 
                 
 
 
