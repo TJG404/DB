@@ -884,8 +884,221 @@ select emp_id, emp_name
 from employee 
 where emp_id = (select emp_id from employee where emp_name='홍길동');
 
--- 
-                
+/************************************************************
+	서브쿼리(SubQuery) :  메인 쿼리에 다른 쿼리를 추가하여 실행하는 방식
+    형식 : select [컬럼리스트 : (스칼라서브쿼리)]
+			from [테이블명 : (인라인뷰)]
+            where [조건절 : (서브쿼리)]
+*************************************************************/
+use hrdb2019;
+select database();
+show tables;          
+
+-- [서브쿼리]
+-- '정보시스템' 부서명의 사원들을 모두 조회
+-- 사번, 사원명, 부서아이디, 폰번호, 급여
+select emp_id, emp_name, dept_id, phone, salary
+from employee
+where dept_id = (select dept_id from department where dept_name = '정보시스템');      
+
+-- [스칼라 서브쿼리]
+-- '정보시스템' 부서명의 사원들을 모두 조회
+-- 사번, 사원명, 부서아이디, 부서명(부서테이블), 폰번호, 급여
+select 	emp_id, 
+		emp_name, 
+        dept_id, 
+        (select dept_name from department where dept_name= '정보시스템') as dept_name, -- 권장X
+        phone, salary
+from employee
+where dept_id = (select dept_id from department where dept_name = '정보시스템'); 
+
+-- [서브쿼리 : 단일행 - '=']
+-- 홍길동 사원이 속한 부서명을 조회
+select dept_name
+from department
+where dept_id = (select dept_id from employee where emp_name ='홍길동' );
+
+-- 홍길동 사원의 휴가사용 내역을 조회
+desc vacation;
+select *
+from vacation
+where emp_id = (select emp_id from employee where emp_name ='홍길동');
+
+-- 제3본부에 속한 모든 부서를 조회
+select *
+from department
+where unit_id = (select unit_id from unit where unit_name = '제3본부');
+
+-- 급여가 가장 높은 사원의 정보 조회
+select *
+from employee
+where salary = (select max(salary) as salary from employee);
+
+-- 급여가 가장 낮은 사원의 정보 조회
+select *
+from employee
+where salary = (select min(salary) as salary from employee);
+
+-- 가장 빨리 입사한 사원의 정보 조회
+select *
+from employee
+where hire_date = (select min(hire_date) as hire_date from employee);
+
+-- 가장 최근 입사한 사원의 정보 조회
+select *
+from employee
+where hire_date = (select max(hire_date) as hire_date from employee);
+
+-- [서브쿼리 : 다중행 - IN]
+-- '제3본부'에 속한 모든 사원 정보 조회
+select *
+from employee
+where dept_id in (select dept_id
+					from department
+					where unit_id = (select unit_id from unit where unit_name = '제3본부'));
+                    
+-- '제3본부'에 속한 모든 사원들의 휴가 사용 내역 조회
+select *
+from vacation
+where emp_id in (select emp_id
+					from employee
+					where dept_id in (select dept_id
+										from department
+										where unit_id = (select unit_id from unit where unit_name = '제3본부'))
+                    );
+
+
+-- [인라인뷰 : 메인쿼리의 테이블 자리에 들어가는 서브쿼리 형식]
+
+-- [휴가를 사용한 사원정보만!!]
+-- 사원별 휴가사용 일수를 그룹핑하여, 사원아이디, 사원명, 입사일, 연봉, 휴가사용일수를 조회해주세요. 
+desc vacation;
+
+select e.emp_id, e.emp_name, e.hire_date, e.salary, v.duration
+from employee e, (select emp_id, sum(duration) as duration
+				from vacation
+				group by emp_id) v
+where e.emp_id = v.emp_id;   
+
+-- ansi : inner join
+select e.emp_id, e.emp_name, e.hire_date, e.salary, v.duration
+from employee e
+	inner join (select emp_id, sum(duration) as duration
+				from vacation
+				group by emp_id) v
+	on e.emp_id = v.emp_id; 
+        
+
+-- [휴가를 사용한 사원정보 + 사용하지 않은 사원 포함!]
+-- 사원별 휴가사용 일수를 그룹핑하여, 사원아이디, 사원명, 입사일, 연봉, 휴가사용일수를 조회해주세요. 
+-- 휴가를 사용하지 않은 사원은 기본값 0
+-- 사용일수 기준 내림차순 정렬
+-- left outer join
+select e.emp_id, e.emp_name, e.hire_date, e.salary, ifnull(v.duration, 0) duration
+from employee e
+	 left outer join
+	 (select emp_id, sum(duration) as duration
+					from vacation
+					group by emp_id) v
+	on e.emp_id = v.emp_id
+order by duration desc   ;  
+
+
+-- 1) 2016 ~ 2017년도 입사한 사원들의 정보 조회
+-- 2) 1번의 실행 결과와 vacation 테이블을 조인하여 휴가사용 내역 출력
+select *
+from vacation v,
+	 (select *
+		from employee
+		where left(hire_date, 4) between '2016' and '2017') e
+where v.emp_id = e.emp_id;
+
+-- 1) 부서별 총급여, 평균급여를 구하여 30000 이상인 부서 조회
+-- 2) 1번의 실행 결과와 employee 테이블을 조인하여 사원아이디, 사원명, 급여, 부서아이디, 부서명, 부서별 총급여, 평균급여 출력
+select e.emp_id, e.emp_name, e.salary, e.dept_id, d.dept_name, t.sum, t.avg
+from employee e,
+	 department d,
+	(select dept_id, sum(salary) as sum, avg(salary) as avg
+	from employee
+	group by dept_id
+	having sum(salary) >= 30000) t
+where e.dept_id = d.dept_id and d.dept_id = t.dept_id ;
+
+/************************************************************
+	테이블 결과 합치기 : union, union all
+    형식> 쿼리1 실행 결과  union 쿼리2 실행 결과
+         쿼리1 실행 결과  union all 쿼리2 실행 결과
+	** 실행결과 컬럼이 동일(컬럼명, 데이터타입)
+*************************************************************/
+-- 영업부, 정보시스템 부서의 사원아이디, 사원명, 급여, 부서아이디 조회
+-- union : 영업 부서 사원들이 한번만 출력
+select emp_id, emp_name, salary, dept_id
+from employee
+where dept_id = (select dept_id from department where dept_name = '영업')
+union 
+select emp_id, emp_name, salary, dept_id
+from employee
+where dept_id = (select dept_id from department where dept_name = '영업')
+union 
+select emp_id, emp_name, salary, dept_id
+from employee
+where dept_id = (select dept_id from department where dept_name = '정보시스템');
+
+-- union all : 영업 부서 사원들이 중복되어 출력
+select emp_id, emp_name, salary, dept_id
+from employee
+where dept_id = (select dept_id from department where dept_name = '영업')
+union 
+select emp_id, emp_name, salary, dept_id
+from employee
+where dept_id = (select dept_id from department where dept_name = '영업')
+union all
+select emp_id, emp_name, salary, dept_id
+from employee
+where dept_id = (select dept_id from department where dept_name = '정보시스템');
+
+/*******************************************************************
+	논리적인 테이블 : VIEW(뷰), SQL을 실행하여 생성된 결과를 가상테이블로 정의
+    뷰 생성 : create view [view 이름]
+			 as [SQL 정의];
+	뷰 삭제 : drop view [view 이름]
+    ** 뷰 생성시 권한을 할당 받아야 함 - mysql, maria 제외              
+********************************************************************/
+select *
+from information_schema.views
+where table_schema = 'hrdb2019';
+
+-- 부서 총급여가 30000 이상인 테이블
+create view view_salary_sum
+as
+select e.emp_id, e.emp_name, e.salary, e.dept_id, d.dept_name, t.sum, t.avg
+from employee e,
+	 department d,
+	(select dept_id, sum(salary) as sum, avg(salary) as avg
+	from employee
+	group by dept_id
+	having sum(salary) >= 30000) t
+where e.dept_id = d.dept_id and d.dept_id = t.dept_id ;
+
+
+-- view_salary_sum  실행
+select *
+from view_salary_sum;
+
+-- view_salary_sum  삭제
+drop view view_salary_sum;
+select * from information_schema.views
+where table_schema = 'hrdb2019';
+
+
+
+
+
+
+
+
+
+
 
 
 
