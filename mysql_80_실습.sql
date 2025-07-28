@@ -1630,8 +1630,117 @@ where su.sname = 'java';
 select sname from student
 where sid = (select sid from subject
 				where sid = (select sid from professor where name = '김철수'));
+                
+--
+desc student;  
+select * from student;
+-- kor, eng, math 과목 컬럼 추가, decimal(10,2)
+alter table student
+add column kor decimal(7,2) null;
 
+alter table student
+add column eng decimal(7,2) null;
 
+alter table student
+add column math decimal(7,2) null;
+
+desc student;
+select * from student;
+
+update student
+set kor = 0.0, eng = 0.0, math = 0.0
+where kor is null 
+	and eng is null
+    and math is null;
+
+select * from student;   
+ 
+/********************************************
+	회원, 상품, 주문, 주문상세 테이블 생성 및 실습
+*********************************************/
+show tables;
+select * from member;
+insert into member(name, email) values('이순신','lee@naver.com');
+
+desc product;
+insert into product(name, price) 
+values  ('모니터', 1000),
+		('키보드', 2000),
+		('마우스',2500);
+select * from product;
+
+show tables;
+desc `order`;
+select * from `order`;
+insert into `order`(member_id, order_date)
+	values(1, '2024-06-25');
+insert into `order`(member_id, order_date)
+	values(2, '2025-01-25');      
+
+show tables;
+desc orderitem;   
+insert into orderitem(order_id, product_id, quantity, unit_price)
+	values(1, 2, 1, 2000);
+
+insert into orderitem(order_id, product_id, quantity, unit_price)
+	values(2, 3, 2, 2500);    
+select * from orderitem;
+
+-- 홍길동 고객의 고객명, 이메일, 가입날짜, 주문날짜를 조회
+-- 주문날짜는 년, 월, 일로만 출력
+desc member;
+select m.name, m.email, m.created_at, left(o.order_date, 10) as order_date 
+from member m, `order` o
+where m.member_id = o.member_id
+	and m.name = '홍길동';
+
+select m.name, m.email, m.created_at, left(o.order_date, 10) as order_date 
+from member m inner join `order` o on m.member_id = o.member_id
+where m.name = '홍길동';    
+
+-- 상품별 주문 건수
+-- 상품명, 주문건수 출력
+select p.name, count(*) as count
+from product p, orderitem oi
+where p.product_id = oi.product_id
+group by p.name
+order by count;
+
+select p.name, count(*) as count
+from product p inner join orderitem oi on p.product_id = oi.product_id
+group by p.name
+order by count;
+
+insert into product(name, price) 
+values  ('리모컨', 3000),
+		('USB', 2000);
+select * from product;
+        
+
+-- 상품별 주문 건수(수량), 모든 상품 조회
+select p.name, count(quantity) as count
+from product p left outer join orderitem oi
+				on p.product_id = oi.product_id
+group by p.name;                
+
+-- 회원이 주문한 내역과 제품명 조회
+-- 회원명, 가입날짜, 주문날짜, 주문수량, 제품명, 가격
+select m.name, m.created_at, o.order_date, oi.quantity, p.name, p.price
+from member m, `order` o, orderitem oi, product p
+where m.member_id = o.member_id 
+	and o.order_id = oi.order_id
+    and oi.product_id = p.product_id;
+
+-- 회원이 주문한 내역과 제품명 조회
+-- 회원명, 가입날짜, 주문날짜, 주문수량, 제품명, 가격
+-- 주문되지 않은 모든 제품 출력 
+select t1.name, t1.created_at, t1.order_date, t1.quantity, p.name, p.price
+from (select distinct m.name, m.created_at, o.order_date, oi.quantity, oi.product_id
+		from member m, `order` o, orderitem oi
+		where m.member_id = o.member_id 
+		and o.order_id = oi.order_id) t1 right outer join product p
+										on t1.product_id = p.product_id;
+                                        
 
 
                 
