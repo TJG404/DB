@@ -1715,7 +1715,12 @@ insert into product(name, price)
 values  ('리모컨', 3000),
 		('USB', 2000);
 select * from product;
-        
+  
+select * from emp;
+alter table emp
+	rename column emp_name to ename;
+  
+  
 
 -- 상품별 주문 건수(수량), 모든 상품 조회
 select p.name, count(quantity) as count
@@ -1741,11 +1746,65 @@ from (select distinct m.name, m.created_at, o.order_date, oi.quantity, oi.produc
 		and o.order_id = oi.order_id) t1 right outer join product p
 										on t1.product_id = p.product_id;
                                         
+/********************************************
+	행번호, 트리거를 이용한 사원번호 생성
+*********************************************/
+-- SELECT 
+--   ROW_NUMBER() OVER (ORDER BY 정렬기준컬럼) AS row_num,
+--   컬럼1,
+--   컬럼2
+-- FROM 테이블명;
+select 
+	row_number() over(order by emp_id) as no,
+    emp_id, 
+    emp_name
+from employee;   
+
+-- 순위
+SELECT 
+  emp_id,
+  emp_name,
+  hire_date,
+  ROW_NUMBER() OVER (ORDER BY emp_id DESC) AS row_num,
+  RANK() OVER (ORDER BY salary DESC) AS rank_num,
+  DENSE_RANK() OVER (ORDER BY emp_id DESC) AS `dense_rank`
+FROM employee;
 
 
-                
+-- 트리거
+CREATE TABLE trg_member (
+    -- member_id INT AUTO_INCREMENT PRIMARY KEY,
+    member_code VARCHAR(20),  -- 예: MEM20250001
+    name VARCHAR(50),
+    email VARCHAR(100),    
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+--
+DELIMITER $$
+CREATE TRIGGER trg2
+BEFORE INSERT ON trg_member
+FOR EACH ROW
+BEGIN
+    DECLARE max_code INT;
+
+    -- 현재 존재하는 가장 큰 사번을 숫자로 가져옴 (NULL이면 0)
+    SELECT IFNULL(MAX(CAST(member_code AS UNSIGNED)), 0)
+    INTO max_code
+    FROM trg_member;
+
+    -- 새 사번 생성: 0001 형식으로 패딩 처리
+    SET NEW.member_code = concat('S', LPAD(max_code + 1, 4, '0'));
+END$$
+DELIMITER ;
+
+--
+drop table trg_member;
+select * from trg_member;
+insert into trg_member(name, email, created_at) values('홍길동','hong@test.com', curdate()) ;
 
 
+select * from information_schema.triggers;
+drop trigger trg2;
 
 
 
