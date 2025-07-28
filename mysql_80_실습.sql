@@ -1316,8 +1316,201 @@ set autocommit = 0;
     
 
 /*******************************************************************
-	  제약사항 !!
+	  constraint(제약사항) : 데이터의 무결성 원칙을 적용하기 위한 규칙
+      - unique(유니크 제약) : 중복방지 제약
+      - not null : null 값을 허용하지 않는 제약 :: 화면 구현시 유효성 체크로직과 연동!!
+      - primary key(기본키) : unique + not null 제약 설정
+      - foreign key(참조키) : 타 테이블의 기본키를 참조하는 컬럼 설정, 
+							참조하는 기본키의 데이터타입과 동일함
+	  - default : 데이터 입력 시 기본으로 저장데이터는 값 설정
+      
+      ** 제약사항은 테이블 생성 시 정의 가능함, 또는 테이블 수정으로도 변경, 추가 가능
+      - create table..., alter table...
 ********************************************************************/
+use hrdb2019;
+select database();
+select * from information_schema.table_constraints
+ where table_schema = 'hrdb2019'; 
+ 
+desc employee;
+desc department;
+
+-- 테이블 생성 : emp_const
+create table emp_const(
+	emp_id		char(4)		primary key,  
+    emp_name 	varchar(10) not null,
+    hire_date	date,
+    salary		int
+);
+show tables;
+desc emp_const;
+insert into emp_const(emp_id, emp_name, hire_date, salary)
+	values('s002', '홍길동', curdate(), 1000);
+
+insert into emp_const(emp_id, emp_name, hire_date, salary)
+	values('s004', '이순신', null, null);    
+select * from emp_const;    
+
+desc emp_const;
+
+-- 테이블 생성 : emp_const2
+create table emp_const2 (
+	emp_id		char(5),
+    emp_name	varchar(10)		not null,
+    hire_date	date,
+    salary		int,
+    constraint 	pk_emp_const2	primary key(emp_id)
+);
+
+select * from information_schema.table_constraints
+	where table_name = 'emp_const2';
+
+insert into emp_const2(emp_id, emp_name, hire_date, salary)    
+	values('s001', '홍길동', now(), 1000);
+select * from emp_const2;    
+desc emp_const2;
+
+-- emp_const2 컬럼 추가 : phone, char(13) 컬럼 추가
+desc emp_const2;
+select * from emp_const2;
+
+alter table emp_const2
+	add column phone char(13) null;
+	
+-- 홍길동의 폰번호 업데이트 후, phone 컬럼을 not null 수정
+set sql_safe_updates = 0;  -- 해제
+update emp_const2
+	set phone = '010-1234-1234'
+    where emp_name = '홍길동';
+select * from emp_const2;
+
+alter table emp_const2
+	modify column phone char(13) not null;
+desc emp_const2;    
+
+-- phone 컬럼에 unique 제약 추가, 중복된 데이터 확인, null 입력 가능(단, 1개만)
+alter table emp_const2
+	add constraint uni_phone unique(phone);
+
+select * from information_schema.table_constraints
+		where table_name = 'emp_const2';
+
+-- phone 컬럼에 unique 제약 삭제
+alter table emp_const2
+	drop constraint uni_phone;
+
+-- emp 테이블 삭제    
+show tables;    
+drop table emp;
+drop table emp2;
+
+-- department 테이블의 복사본 : dept, employee 테이블 복사본 : emp
+create table dept
+as 
+select * from department
+where unit_id is not null;
+
+show tables;
+desc dept;
+select * from dept;
+-- dept_id 컬럼에 primary key 제약 추가
+alter table dept
+	add constraint pk_dept_id primary key(dept_id);
+    
+select * from information_schema.table_constraints
+where table_name = 'dept';
+
+desc dept;
+
+-- 2018년도에 입사한 사원들만 복제
+create table emp
+as
+select * from employee
+where left(hire_date, 4) = '2018';
+
+show tables;
+desc emp;
+select * from emp;
+
+-- emp 테이블 제약 사항 추가, primary key(emp_id)
+select * from information_schema.table_constraints
+where table_name = 'emp';
+
+alter table emp
+	add constraint pk_emp_id  primary key(emp_id);
+desc emp;
+
+-- foreign key(dept_id) 참조키 제약 추가
+alter table emp
+	add constraint fk_dept_id foreign key(dept_id)
+		references dept(dept_id);
+
+select * from dept;  
+-- ACC
+-- ADV
+-- GEN
+-- HRD
+-- MKT
+-- SYS      
+
+select * from emp;
+-- 고소해 부서이동 --> ACC
+update emp
+	set dept_id = 'ACC'
+    where emp_id = 'S0020';
+
+-- 홍길동 사원 추가
+desc emp;
+insert into emp
+values('S0001', '홍길동', null, 'M', curdate(), null, 'HRD', '010-1234-2345', 'hong@test.com', null);
+
+insert into emp
+values('S0002', '홍길동', null, 'M', curdate(), null, 'SYS', '010-1234-2345', 'hong@test.com', null);
+select * from emp;
+
+/*
+[학사관리 시스템 설계]
+1. 과목(SUBJECT) 테이블은 
+	컬럼 : SID(과목아이디), SNAME(과목명), SDATE(등록일:년월일 시분초)
+    SID는 기본키, 자동으로 생성한다.
+2. 학생(STUDENT) 테이블은 반드시 하나이상의 과목을 수강해야 한다. 
+	컬럼 : STID(학생아이디) 기본키, 자동생성
+		SNAME(학생명) 널허용x,
+		GENDER(성별)  문자1자 널허용x,
+		SID(과목아이디),
+		STDATE(등록일자) 년월일 시분초
+3. 교수(PROFESSOR) 테이블은 반드시 하나이상의 과목을 강의해야 한다.
+	컬럼 : PID(교수아이디) 기본키, 자동생성
+		NAME(교수명) 널허용x
+		SID(과목아이디),
+		PDATE(등록일자) 년월일 시분초
+*/
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
