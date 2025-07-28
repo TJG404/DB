@@ -1485,14 +1485,156 @@ select * from emp;
 		SID(과목아이디),
 		PDATE(등록일자) 년월일 시분초
 */
-    
+-- 과목 테이블 생성
+create table subject(
+	sid		int 			primary key 	auto_increment,
+    sname	varchar(20)		not null,
+    sdate	datetime
+);
+show tables;
+desc subject;  
+
+-- 학생 테이블 생성
+create table student(
+	stid		int				auto_increment 		primary key,
+    sname		varchar(10)		not null,
+    gender		char(1)			not null,
+    sid			int,
+    stdate		datetime,
+    constraint fk_sid_student	foreign key(sid)
+								references subject(sid)
+);  
+show tables;
+desc student;
+
+-- 교수 테이블 생성
+create table professor(
+	pid			int				primary key			auto_increment,
+    name		varchar(10)		not null,
+    sid			int,
+    pdate		datetime,
+    constraint 	fk_sid_professor foreign key(sid)
+								references subject(sid)    
+);
+show tables;
+desc professor;
+
+select * from information_schema.table_constraints
+	where table_name in ('subject', 'student', 'professor ');
+
+
+-- 과목 데이터 추가
+insert into subject(sname, sdate) values('java', now());    
+insert into subject(sname, sdate) values('mysql', now());  
+insert into subject(sname, sdate) values('html', now());  
+insert into subject(sname, sdate) values('react', now());  
+insert into subject(sname, sdate) values('node', now());  
+
+select * from subject;
+
+-- 학생 데이터 입력
+insert into student(sname, gender, sid, stdate)
+	values('홍길동', 'm', 1, now());
+insert into student(sname, gender, sid, stdate)
+	values('이순신', 'm', 3, now());
+insert into student(sname, gender, sid, stdate)
+	values('김유신', 'm', 3, now());
+insert into student(sname, gender, sid, stdate)
+	values('박보검', 'm', 4, now());
+insert into student(sname, gender, sid, stdate)
+	values('아이유', 'f', 4, now());    
+select * from student;
+
+-- 교수 데이터 추가
+insert into professor(name, sid, pdate) values('스미스', 1, now());
+insert into professor(name, sid, pdate) values('홍홍', 3, now());
+insert into professor(name, sid, pdate) values('김철수', 4, now());
+
+select * from professor;
+
+desc student;
+desc subject;
+
+-- 홍길동 학생이 수강하는 과목명을 조회
+select su.sname 
+from subject su, student st
+where su.sid = st.sid
+	and st.sname = '홍길동';
+
+select su.sname
+from subject su inner join student st
+				on su.sid = st.sid
+where st.sname = '홍길동';
+
+
+select sname from subject
+where sid = (select sid from student where sname = '홍길동');
+
+-- 홍길동 학생이 수강하는 과목명과 학생명을 조회
+select su.sname as 과목명, st.sname as 학생명
+from subject su, student st
+where su.sid = st.sid
+	and st.sname = '홍길동';
+
+select su.sname as 과목명, st.sname as 학생명
+from subject su inner join student st
+				on su.sid = st.sid
+where st.sname = '홍길동';
+
+-- 스미스 교수가 강의하는 과목을 조회
+select su.sname
+from subject su, professor p
+where su.sid = p.sid
+	and name = '스미스';
+
+select su.sname
+from subject su	inner join professor p
+				on su.sid = p.sid
+where name = '스미스';
+
+select sname from subject
+where sid = (select sid from professor where name = '스미스');            
+
+-- java, 안중근 교수 추가
+insert into professor(name, sid, pdate) values('안중근', 1, now());    
+select * from professor;
+
+-- java 수업을 강의하는 모든 교수 조회
+select p.name
+from professor p, subject su
+where p.sid = su.sid and su.sname = 'java';
+
+select p.name
+from professor p  inner join subject su
+				  on p.sid = su.sid
+where su.sname = 'java';
+
+select name from professor
+where sid = (select sid from subject where sname = 'java');
+
+-- java 수업을 강의하는 교수와 수강신청한 학생들을 조회
+-- 과목아이디, 과목명, 교수명, 학생명
+select su.sid, su.sname, p.name, st.sname
+from subject su, professor p, student st
+where su.sid = p.sid 
+	and su.sid = st.sid
+	and su.sname = 'java';
+
+select su.sid, su.sname, p.name, st.sname
+from subject su inner join professor p	on su.sid = p.sid
+				inner join student st  on su.sid = st.sid
+where su.sname = 'java';  
+
+-- 김철수 교수가 강의하는 과목을 수강하는 학생 조회
+-- 학생명 출력, 서브쿼리
+select sname from student
+where sid = (select sid from subject
+				where sid = (select sid from professor where name = '김철수'));
 
 
 
 
-
-
-
+                
 
 
 
