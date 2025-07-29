@@ -1950,7 +1950,7 @@ select * from reply;
 -- 2. 트리거를 사용하여 부모의 참조컬럼 삭제 시 자식의 참조 컬럼 데이터를 null로 변경
 -- **** 오라클 데이터베이스에서는 트리거 실행 가능!!!
 -- **** innoDB 형식의 데이터베이스인 mysql, maria는 트리거 실행 불가능!!
--- 이유는 innoDB형식은 트리거 실행 전 참조관계를 먼저 체크하여 에러 발생 시킴!!
+-- 이유는 innoDB형식은 트리거 실행 전 참조관계를 먼저 체크하여 에러 발생 시킴
 
 select * from information_schema.triggers;
 -- dept 테이블의 row 삭제시(dept_id 컬럼 포함), 참조하는 emp 테이블의 dept_id에 null값 업데이트
@@ -1968,5 +1968,47 @@ update emp
 end $$
 delimiter ;
 /************************************************/
+
+-- 사원 테이블의 급여 변경 시 로그 저장 :: 트리거 업데이트 이용
+select * from information_schema.triggers;
+create table salary_log(
+	emp_id		char(5)	 	primary key,
+    old_salary	int,
+    new_salary	int,
+    change_date  date
+);
+desc salary_log;
+select * from information_schema.triggers;
+drop trigger trg_salary_update;
+select * from salary_log;
+update employee set salary = 8000
+	where emp_id = 'S0020';
+/************************************************/
+delimiter $$
+create trigger trg_salary_update
+after update on employee -- 테이블명
+for each row
+begin
+-- 사원 테이블의 급여 변경 시 로그 저장, old.salary(기존급여), new.salary(새로운급여)
+	if old.salary <> new.salary	then
+		insert into salary_log(emp_id, old_salary, new_salary, change_date)
+					values(old.emp_id, old.salary, new.salary, now());
+	end if;
+end $$
+delimiter ;
+/************************************************/
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
