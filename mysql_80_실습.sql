@@ -1749,69 +1749,75 @@ from (select distinct m.name, m.created_at, o.order_date, oi.quantity, oi.produc
 /********************************************
 	행번호, 트리거를 이용한 사원번호 생성
 *********************************************/
--- SELECT 
---   ROW_NUMBER() OVER (ORDER BY 정렬기준컬럼) AS row_num,
---   컬럼1,
---   컬럼2
--- FROM 테이블명;
+use hrdb2019;
+select database();
+
+-- 사원테이블의 사번, 사원명, 입사일, 폰번호, 이메일, 급여 조회
+select emp_id, emp_name, hire_date, phone, email, salary
+from employee;
+
+-- row_number() over(order by 컬럼명 ASC/DESC)
+-- 입사일 : 입사년도, 급여: 3자리 구분
 select 
-	row_number() over(order by emp_id) as no,
+	row_number() over(order by emp_id) as rno,
     emp_id, 
-    emp_name
+    emp_name, 
+    concat(left(hire_date, 4), '년') as hire_date,
+    phone, 
+    email, 
+    salary,
+	concat(format(salary, 0), '원') as salary
+from employee;
+
+
+
+
+
+-- rno 행번호 추가, 주문날짜(년,월,일), 가격(소수점 생략, 3자리 구분)
+select 
+	row_number() over() as rno,
+    t1.name, 
+    t1.created_at, 
+    left(t1.order_date, 10) as order_date, 
+    t1.quantity, 
+    p.name, 
+    format(floor(p.price), 0) as price
+from (select distinct m.name, m.created_at, o.order_date, oi.quantity, oi.product_id
+		from member m, `order` o, orderitem oi
+		where m.member_id = o.member_id 
+		and o.order_id = oi.order_id) t1 right outer join product p
+										on t1.product_id = p.product_id;
+
+-- 석차를 구하는 함수
+select 
+	-- row_number() over(order by emp_id desc) as rno, 
+	rank() over(order by salary desc) as r,
+	emp_id, 
+    emp_name,
+    dept_id,
+    salary
 from employee;   
 
--- 순위
-SELECT 
-  emp_id,
-  emp_name,
-  hire_date,
-  ROW_NUMBER() OVER (ORDER BY emp_id DESC) AS row_num,
-  RANK() OVER (ORDER BY salary DESC) AS rank_num,
-  DENSE_RANK() OVER (ORDER BY emp_id DESC) AS `dense_rank`
-FROM employee;
+-- 트리거 : 프로시저(함수, 메소드)를 호출하는 시작점
+select *
+from information_schema.triggers;
 
-
--- 트리거
-CREATE TABLE trg_member (
-    -- member_id INT AUTO_INCREMENT PRIMARY KEY,
-    member_code VARCHAR(20),  -- 예: MEM20250001
-    name VARCHAR(50),
-    email VARCHAR(100),    
-    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+-- 트리거 실습 테이블
+create table trg_member(
+	mid		char(5),	 -- 'M0001'
+    name	varchar(10),
+    mdate	date
 );
---
-DELIMITER $$
-CREATE TRIGGER trg2
-BEFORE INSERT ON trg_member
-FOR EACH ROW
-BEGIN
-    DECLARE max_code INT;
-
-    -- 현재 존재하는 가장 큰 사번을 숫자로 가져옴 (NULL이면 0)
-    SELECT IFNULL(MAX(CAST(member_code AS UNSIGNED)), 0)
-    INTO max_code
-    FROM trg_member;
-
-    -- 새 사번 생성: 0001 형식으로 패딩 처리
-    SET NEW.member_code = concat('S', LPAD(max_code + 1, 4, '0'));
-END$$
-DELIMITER ;
-
---
-drop table trg_member;
+show tables;
+desc trg_member;
 select * from trg_member;
-insert into trg_member(name, email, created_at) values('홍길동','hong@test.com', curdate()) ;
-
-
-select * from information_schema.triggers;
-drop trigger trg2;
 
 
 
 
 
 
-
+                                     
 
 
 
